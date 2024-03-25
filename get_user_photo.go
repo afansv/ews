@@ -13,6 +13,7 @@ type GetUserPhotoRequest struct {
 
 type GetUserPhotoResponse struct {
 	Response
+	Etag        string `xml:"-"`
 	HasChanged  bool   `xml:"HasChanged"`
 	PictureData string `xml:"PictureData"`
 }
@@ -26,7 +27,7 @@ type getUserPhotoResponseBody struct {
 }
 
 // GetUserPhoto
-//https://docs.microsoft.com/en-us/exchange/client-developer/web-service-reference/getuserphoto-operation
+// https://docs.microsoft.com/en-us/exchange/client-developer/web-service-reference/getuserphoto-operation
 func GetUserPhoto(c Client, r *GetUserPhotoRequest) (*GetUserPhotoResponse, error) {
 
 	xmlBytes, err := xml.MarshalIndent(r, "", "  ")
@@ -34,7 +35,7 @@ func GetUserPhoto(c Client, r *GetUserPhotoRequest) (*GetUserPhotoResponse, erro
 		return nil, err
 	}
 
-	bb, err := c.SendAndReceive(xmlBytes)
+	bb, respHeaders, err := c.SendAndReceiveWithHeaders(xmlBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -48,6 +49,8 @@ func GetUserPhoto(c Client, r *GetUserPhotoRequest) (*GetUserPhotoResponse, erro
 	if soapResp.Body.GetUserPhotoResponse.ResponseClass == ResponseClassError {
 		return nil, errors.New(soapResp.Body.GetUserPhotoResponse.MessageText)
 	}
+
+	soapResp.Body.GetUserPhotoResponse.Etag = respHeaders.Get("etag")
 
 	return &soapResp.Body.GetUserPhotoResponse, nil
 }

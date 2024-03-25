@@ -33,6 +33,7 @@ type Config struct {
 
 type Client interface {
 	SendAndReceive(body []byte) ([]byte, error)
+	SendAndReceiveWithHeaders(body []byte) ([]byte, http.Header, error)
 	GetEWSAddr() string
 	GetUsername() string
 }
@@ -62,14 +63,18 @@ func NewClient(ewsAddr, username, password string, config *Config) Client {
 }
 
 func (c *client) SendAndReceive(body []byte) ([]byte, error) {
+	respBytes, _, err := c.SendAndReceiveWithHeaders(body)
+	return respBytes, err
+}
 
+func (c *client) SendAndReceiveWithHeaders(body []byte) ([]byte, http.Header, error) {
 	bb := []byte(soapStart)
 	bb = append(bb, body...)
 	bb = append(bb, soapEnd...)
 
 	req, err := http.NewRequest("POST", c.EWSAddr, bytes.NewReader(bb))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer req.Body.Close()
 	logRequest(c, req)
@@ -86,21 +91,21 @@ func (c *client) SendAndReceive(body []byte) ([]byte, error) {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer resp.Body.Close()
 	logResponse(c, resp)
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, NewError(resp)
+		return nil, nil, NewError(resp)
 	}
 
 	respBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return respBytes, err
+	return respBytes, resp.Header, err
 }
 
 func applyConfig(config *Config, client *http.Client) {
